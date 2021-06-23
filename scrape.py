@@ -6,5 +6,5 @@ def domain(url: str, ld=2) -> str:
     if len(d) > ld:
         d = d[-ld:]
     d = '.'.join(d)
-    return d
+    return d.strip()
 
