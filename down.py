@@ -17,15 +17,19 @@ def load_keys():
   return keys
 
 
-def rows_from(excel, ii=[-1], key_only=None):
+def rows_from(excel, ii=[-1], rown=None):
   try:
       book = xlrd.open_workbook(excel)
+        
       if ii == [-1]:
           ii = range(0, book.nsheets)
-      for i in ii:
+      for x, i in enumerate(ii):
           sh = book.sheet_by_index(i)
+          row_range = range(sh.nrows)
+          if rown is not None and x == 0: # rown has meaning only when just one sheet is selected x == 0
+            row_range = [rown]
           print('sheet name {}'.format(sh.name))
-          for rowx in range(sh.nrows):
+          for rowx in row_range:
               url = sh.row(rowx)[1] #assumed 1 exists
               if  not url.value:
                   print('empty row skyped')
@@ -33,6 +37,8 @@ def rows_from(excel, ii=[-1], key_only=None):
               key = scrape.domain(url.value)
               if key in keys:
                 yield url.value
+                if rown is not None:
+                  return url.value
   except:
     raise
 
@@ -42,6 +48,7 @@ input = argparse.ArgumentParser(description="Get a PDF's list and download them"
 input.add_argument('-l', '--list', type=str, required=True, help='list filepath')
 input.add_argument('-o', '--only', type=int, nargs='+', default=[-1], help="use only sheets selected by position, first sheet is 0")
 input.add_argument('-s', '--source', type=str, nargs='+', default=None, help='use only sources indicated, must be top domain - ieee.org, not explore.ieee.org')
+input.add_argument('-r', '--rownumber', type=int, default=None, help='row position in sheet file, work just when only a sheet is selected  - first row is at 0 position')
 args = input.parse_args()
 if args is None:
   raise Exception('no arguments provided')
@@ -57,7 +64,7 @@ except Exception as err:
  
 # open excel
 try:
-  for url in rows_from(args.list, args.only):
+  for url in rows_from(args.list, args.only, args.rownumber):
     # here we start to scrape
     print(f'trying to download from: {url}')
 except FileNotFoundError as err:
