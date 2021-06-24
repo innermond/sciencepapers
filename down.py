@@ -17,12 +17,12 @@ def load_keys():
   return keys
 
 
-def rows_from(excel, ii=[-1], rown=None):
+def rows_from(excel, ii=None, rown=None):
   try:
       book = xlrd.open_workbook(excel)
         
       natural_range = range(0, book.nsheets)
-      if ii == [-1]:
+      if ii is None:
           ii = natural_range
       for x, i in enumerate(ii):
           if i not in natural_range:
@@ -50,7 +50,7 @@ def rows_from(excel, ii=[-1], rown=None):
 # get list
 input = argparse.ArgumentParser(description="Get a PDF's list and download them")
 input.add_argument('-l', '--list', type=str, required=True, help='list filepath')
-input.add_argument('-o', '--only', type=int, nargs='+', default=[-1], help="use only sheets selected by position, first sheet is 0")
+input.add_argument('-o', '--only', type=int, nargs='+', default=None, help="use only sheets selected by position, first sheet is 0")
 input.add_argument('-s', '--source', type=str, nargs='+', default=None, help='use only sources indicated, must be top domain - ieee.org, not explore.ieee.org')
 input.add_argument('-r', '--rownumber', type=int, default=None, help='row position in sheet file, work just when only a sheet is selected  - first row is at 0 position')
 args = input.parse_args()
@@ -68,6 +68,8 @@ except Exception as err:
  
 # open excel
 try:
+  if args.only is not None:
+    args.only = list(set(args.only)) 
   for url in rows_from(args.list, args.only, args.rownumber):
     # here we start to scrape
     print(f'trying to download from: {url}')
