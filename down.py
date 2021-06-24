@@ -21,9 +21,13 @@ def rows_from(excel, ii=[-1], rown=None):
   try:
       book = xlrd.open_workbook(excel)
         
+      natural_range = range(0, book.nsheets)
       if ii == [-1]:
-          ii = range(0, book.nsheets)
+          ii = natural_range
       for x, i in enumerate(ii):
+          if i not in natural_range:
+            print(f'{i} is not an available sheet index')
+            continue
           sh = book.sheet_by_index(i)
           row_range = range(sh.nrows)
           if rown is not None and x == 0: # rown has meaning only when just one sheet is selected x == 0
