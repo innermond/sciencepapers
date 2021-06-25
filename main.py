@@ -49,11 +49,14 @@ def rows_from(excel, ii=None, rown=None):
         if  not url.value:
           log.info('Empty row skyped')
           continue
-        key = scrape.domain(url.value)
-        if key in keys:
-          yield url.value
+        k = scrape.domain(url.value)
+        if k in keys:
+          yield url.value, {'strategy': k, **keys[k]}
+        else:
+          log.info(f'{k} is not on list')
+          yield url.value, {'strategy': 'all.roses', **{'key':'', 'usr':'', 'pwd':''}}
         if rown is not None:
-          return url.value
+          return url.value, {'strategy': k, **keys[k]}
   except:
     raise
 

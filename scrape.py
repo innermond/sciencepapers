@@ -1,6 +1,10 @@
+import sys
 from urllib.parse import urlparse
 import asyncio
 from pyppeteer import launch
+from importlib import import_module
+import requests
+import time
 
 def domain(url: str, ld=2) -> str:
     d = urlparse(url).netloc
@@ -10,23 +14,54 @@ def domain(url: str, ld=2) -> str:
     d = '.'.join(d)
     return d.strip()
 
-state = type('', (), {})()
-state.log=None
-state.browser=None
-state.page=None
+# load dinamically a strategy
+def import_strategy(lib):
+  #lib is a website topdomain
+  lib = 'strategy.%s' % lib.replace('.', '_')
+  # already imported?
+  if lib in sys.modules:
+    return lib
+  try:
+    sys.modules[lib] = import_module(lib)
+    return lib
+  except:
+    return False
+
+ctx = type('', (), {})()
+ctx.log=None
+ctx.browser=None
+ctx.page=None
 
 
 async def start(logger):
-  state.log = logger
-  state.browser = await launch()
-  state.page = await state.browser.newPage()
+  ctx.log = logger
+  ctx.browser = await launch()
+  #ctx.browser = await launch({'headless': False})
+  ctx.page = await ctx.browser.newPage()
 
 async def end():
-  await state.browser.close()
+  await ctx.browser.close()
 
 async def download(urls):
-  for url in urls:
-    state.log.info(f'Trying to download from: {url}')
-    await state.page.goto(url)
-    state.log.info('download: headless is on page %s' % url)
-    await state.page.screenshot({'path': './sample.png'})
+  toplevel_prev = ''
+  for url, meta in urls:
+    toplevel = domain(url)
+    try:
+      if toplevel == toplevel_prev:
+        ctx.log.info('applied rate limit')
+        time.sleep(1)
+      #r = requests.get(url, timeout=(3,3))
+      #ctyp = r.headers['content-type']
+      #ctx.log.info(f'{ctyp} for {url}')
+    except requests.exceptions.Timeout:
+      ctx.log.error('timeouted')
+    finally:
+      toplevel_prev = domain(url)
+      continue
+    strategy_namespace = import_strategy(meta['strategy'])
+    # strategy
+    if strategy_namespace == False:
+      ctx.log.info('No strategy yet for %s' % toplevel)
+      continue
+    strategy = sys.modules[strategy_namespace]
+    await strategy.apply(ctx, url)
