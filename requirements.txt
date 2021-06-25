@@ -1,0 +1,8 @@
+appdirs==1.4.4
+asyncio==3.4.3
+pyee==8.1.0
+pyppeteer==0.2.5
+tqdm==4.61.1
+urllib3==1.26.5
+websockets==8.1
+xlrd==2.0.1

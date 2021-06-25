@@ -4,6 +4,7 @@ import argparse
 import xlrd
 import scrape
 import json
+import asyncio
 
 # logging
 log = logging.getLogger('app')
@@ -75,13 +76,18 @@ except Exception as err:
   log.error('Could not load keys', err) 
   sys.exit(1)
  
-# open excel
-try:
-  if args.only is not None:
-    args.only = list(set(args.only)) 
-  for url in rows_from(args.list, args.only, args.rownumber):
-    # here we start to scrape
-    log.info(f'Trying to download from: {url}')
-except FileNotFoundError as err:
-  log.error('File {} not found'.format(args.list))
-  sys.exit(1)
+async def main():
+  # open excel
+  try:
+    if args.only is not None:
+      args.only = list(set(args.only)) 
+    await scrape.start(log)
+    await scrape.download(rows_from(args.list, args.only, args.rownumber))
+  except FileNotFoundError as err:
+    log.error('File {} not found'.format(args.list))
+    sys.exit(1)
+  finally:
+    await scrape.end()
+
+if __name__ == '__main__':
+  asyncio.get_event_loop().run_until_complete(main())
