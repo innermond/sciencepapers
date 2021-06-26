@@ -1,6 +1,6 @@
 import scrape
 
-async def apply(ctx, url):
+async def apply(ctx, url, meta):
   ctx.log.info(f'{__name__} [{url}] in progress...')
   toplevel = scrape.domain(url)
   ctx.log.info(f'Visiting %s for eventual cookies' % toplevel)

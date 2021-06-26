@@ -188,3 +188,5 @@ Backup of *.doc*
 
 # Visio autosave temporary files
 *.~vsd*
+
+downloading_session/
