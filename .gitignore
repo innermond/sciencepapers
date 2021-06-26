@@ -190,3 +190,4 @@ Backup of *.doc*
 *.~vsd*
 
 downloading_session/
+*.zip

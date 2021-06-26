@@ -73,7 +73,9 @@ def rows_from(excel, ii=None, rown=None):
           log.info(f'{k} is not on list')
           yield url.value, {'pos': pos, 'strategy': 'all.roses', **{'key':'', 'usr':'', 'pwd':''}}
         if rown is not None:
-          return url.value, {'strategy': k, **keys[k]}
+          if k in keys:
+            return url.value, {'pos': pos, 'strategy': k, **keys[k]}
+          return url.value, {'pos': pos, 'strategy': 'all.roses', **{'key':'', 'usr':'', 'pwd':''}}
   except:
     raise
 
