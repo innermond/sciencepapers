@@ -75,8 +75,10 @@ async def download_using(urls):
     toplevel = domain(url)
     try:
       if toplevel == toplevel_prev:
-        ctx.log.info('applied rate limit')
-        time.sleep(1)
+        slowdown = int(os.getenv('SLOWDOWN', '2'))
+        ctx.log.info(f'applied rate limit {slowdown} seconds')
+        time.sleep(slowdown)
+
       strategy_namespace = import_strategy(meta['strategy'])
       # strategy
       if strategy_namespace == False:
@@ -92,10 +94,12 @@ async def download_using(urls):
 
       strategy = sys.modules[strategy_namespace]
       await strategy.apply(ctx, url, meta)
-    except Exception as err:
-      ctx.log.error('scrape:', err)
     except KeyboardInterrupt as ke:
       raise ke
+    except Exception as err:
+      ctx.log.error(f'scrape: {url} cannot be downloaded')
+      if os.getenv('LOGGER_SHOW_ERROR', '0') == '1':
+        ctx.log.error(err)
 
     toplevel_prev = domain(url)
     continue

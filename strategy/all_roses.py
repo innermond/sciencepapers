@@ -7,8 +7,12 @@ async def apply(ctx, url, meta):
   ctx.log.info(f'{__name__} [{url}] in progress...')
   tc = int(os.getenv('TIMEOUT_CONNECT'))
   tr = int(os.getenv('TIMEOUT_RESPONSE'))
+  raise requests.exceptions.HTTPError('aaaa')
   r = requests.head(url, allow_redirects=True, timeout=(tc,tr))
-  ctyp = r.headers['content-type']
+  ctyp = r.headers.get('content-type')
+  if ctyp is None:
+    ctx.log.error('server did not provided expected header...skipping')
+    return
   ctx.log.info(f'{ctyp} for {url}')
   chop = ctyp.find(';')
   if chop > -1:
