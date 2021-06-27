@@ -44,7 +44,7 @@ def filenamefy(value, allow_unicode=False):
   value = re.sub(r'[^\w\s-]', '', value.lower())
   return re.sub(r'[-\s]+', '-', value).strip('-_')
 
-def rows_from(excel, ii=None, rown=None):
+def rows_from(excel, ii=None, rown=None, source=None):
   try:
     book = xlrd.open_workbook(excel)
     
@@ -55,27 +55,52 @@ def rows_from(excel, ii=None, rown=None):
       if i not in natural_range:
         log.error(f'Sheet index {i} is not available in the current workbook')
         continue
+      
       sh = book.sheet_by_index(i)
       row_range = range(sh.nrows)
+      
+      # adjust row_range for rown
       if rown is not None and x == 0: # rown has meaning only when just one sheet is selected x == 0
+        if rown not in row_range:
+          log.error(f'{rown} is not in worksheet range')
+          break
         row_range = [rown]
+
       log.info('Begin sheet name: {}'.format(sh.name))
       for rowx in row_range:
         url = sh.row(rowx)[1] #assumed 1 exists
         if  not url.value:
           log.info('Empty row skyped')
           continue
+
         pos = '{}__{}__{}__'.format(filenamefy(excel), i, rowx)
         k = scrape.domain(url.value)
-        if k in keys:
-          yield url.value, {'pos': pos, 'strategy': k, **keys[k]}
-        elif arguments.source is None:
-          log.info(f'{k} is not on list')
-          yield url.value, {'pos': pos, 'strategy': 'all.roses', **{'key':'', 'usr':'', 'pwd':''}}
+
+        # row number is above all
         if rown is not None:
           if k in keys:
-            return url.value, {'pos': pos, 'strategy': k, **keys[k]}
-          return url.value, {'pos': pos, 'strategy': 'all.roses', **{'key':'', 'usr':'', 'pwd':''}}
+            yield url.value, {'pos': pos, 'strategy': k, **keys[k]}
+            break
+          if os.getenv('UNKNOWN_SOURCE_TRY') == '1':
+            log.info(f'{k} is not on list -- trying')
+            yield url.value, {'pos': pos, 'strategy': 'all.roses', **{'key':'', 'usr':'', 'pwd':''}}
+            break
+          else:
+            log.info(f'{k} is not on list -- skipping')
+            break
+
+        # dealing with source
+        has_source = source is not None
+        if has_source and k not in source: continue
+        
+        if k in keys:
+          yield url.value, {'pos': pos, 'strategy': k, **keys[k]}
+        else:
+          if os.getenv('UNKNOWN_SOURCE_TRY') == '1':
+            log.info(f'{k} is not on list -- trying')
+            yield url.value, {'pos': pos, 'strategy': 'all.roses', **{'key':'', 'usr':'', 'pwd':''}}
+          else:
+            log.info(f'{k} is not on list -- skipping')
   except:
     raise
 
@@ -91,10 +116,13 @@ except Exception as err:
 async def main():
   # open excel
   try:
+    # keep unique values
     if arguments.only is not None:
       arguments.only = list(set(arguments.only)) 
+    if arguments.source is not None:
+      arguments.source = list(set(arguments.source)) 
     await scrape.start(log)
-    await scrape.download_using(rows_from(arguments.list, arguments.only, arguments.rownumber))
+    await scrape.download_using(rows_from(arguments.list, arguments.only, arguments.rownumber, arguments.source))
   except FileNotFoundError as err:
     log.error('File {} not found'.format(arguments.list))
     raise err
