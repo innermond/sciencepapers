@@ -58,7 +58,7 @@ def collecting_directory_create():
 async def start(logger):
   ctx.log = logger
   ctx.browser = await launch({
-    'headless': True, 
+    'headless': False, 
     'autoClose': False, 
     'handleSIGINT': False, 
     })
