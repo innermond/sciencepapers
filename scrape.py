@@ -58,10 +58,10 @@ def collecting_directory_create():
 async def start(logger):
   ctx.log = logger
   ctx.browser = await launch({
-    'headless': False, 
+    'headless': True, 
     'autoClose': False, 
     'handleSIGINT': False, 
-    #'args': ['--no-sandbox'],
+    'args': ['--no-sandbox'],
     'ignoreDefaultArgs': ["--enable-automation"],
     })
   ctx.page = await ctx.browser.newPage()
@@ -137,8 +137,9 @@ async def start(logger):
   ctx.collecting_directory = collecting_directory_create()
 
 async def end():
-  if ctx.page.isClosed == False: await ctx.page.close()
-  await ctx.browser.close()
+  pass
+  #if ctx.page.isClosed == False: await ctx.page.close()
+  #await ctx.browser.close()
 
 async def download_using(urls):
   toplevel_prev = ''

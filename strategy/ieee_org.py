@@ -1,5 +1,4 @@
 import scrape
-<<<<<<< HEAD
 import asyncio
 import contextvars
 
@@ -47,30 +46,12 @@ async def apply(ctx, url, meta):
   log.info(f'redirect to {url}')
   await asyncio.wait([
     page.goto(url),
-    page.waitForNavigation(),
+    page.waitForNavigation({'waitUntil': 'load'}),
   ])
   pdf_a = 'xpl-view-pdf a'
   await page.waitForSelector(pdf_a)
+  await page._client.send('Page.setDownloadBehavior', {'behavior': 'allow', 'downloadPath': './'})
   await asyncio.wait([
     page.click(pdf_a),
-    page.waitForNavigation(),
+    page.waitForNavigation({'waitUntil': 'load'}),
   ])
-=======
-
-"""
-ieexplore home
-institutional sign in 'University of Melbourne'
-https://sso.unimelb.edu.au/ u+p
-url
-click PDF
-"""
-async def apply(ctx, url, meta):
-  ctx.log.info(f'{__name__} [{url}] in progress...')
-  toplevel = scrape.domain(url)
-  #ieeexplore
-  url = 'https://ieeexplore.ieee.org/Xplore/home.jsp'
-  await ctx.page.goto(url)
-
-
-
->>>>>>> 029ac59be8b363e225f43b61ec2ebdbf8f8441b2
