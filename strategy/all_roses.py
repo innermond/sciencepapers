@@ -7,7 +7,6 @@ async def apply(ctx, url, meta):
   ctx.log.info(f'{__name__} [{url}] in progress...')
   tc = int(os.getenv('TIMEOUT_CONNECT'))
   tr = int(os.getenv('TIMEOUT_RESPONSE'))
-  raise requests.exceptions.HTTPError('aaaa')
   headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36"}
   r = requests.head(url, allow_redirects=True, headers=headers, timeout=(tc,tr))
   ctyp = r.headers.get('content-type')
