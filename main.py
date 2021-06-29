@@ -25,9 +25,8 @@ log.addHandler(ch)
 
 KEYS = os.getenv('KEYS_FILENAME')
 
-
-def load_keys(kk):
-  book = xlrd.open_workbook(kk)
+def load_keys(fn):
+  book = xlrd.open_workbook(fn)
   sh = book.sheet_by_index(0)
   
   keys = {}
@@ -111,7 +110,7 @@ try:
   if arguments.source is not None:
     keys = {k:v for k, v in keys.items() if k in arguments.source}
 except Exception as err:
-  log.error('Could not load keys', err) 
+  log.error(f'Could not load keys from {KEYS}') 
   sys.exit(1)
 
 async def main():
