@@ -2,8 +2,6 @@ import scrape
 import asyncio
 import contextvars
 import os
-import cgi
-from pathlib import Path
 
 ctx_authenticated = contextvars.ContextVar('authenticated')
 ctx_authenticated.set(False)
@@ -13,6 +11,7 @@ async def apply(ctx, url, meta):
   log = ctx.log
   page = ctx.page
   log.info(f'{__name__} [{url}] in progress...')
+
   if not ctx_authenticated.get('authenticated'):
     home_url = 'https://ieeexplore.ieee.org/Xplore/home.jsp'
     await ctx.page.goto(home_url)
@@ -52,35 +51,48 @@ async def apply(ctx, url, meta):
   ])
   pdf_a = 'xpl-view-pdf a'
   await page.waitForSelector(pdf_a)
+  pdf_url = await page.evaluate("""async pdf_a => {
+    const a = document.querySelector(pdf_a);
+    return a.getAttribute('href');
+  }""", [pdf_a])
+  pdf_url = 'https://ieeexplore.ieee.org' + pdf_url
+  await asyncio.wait([
+    page.goto(pdf_url),
+    page.waitForSelector('iframe'),
+  ])
+
+  pdf_url = await page.evaluate("""async () => {
+    const p = new Promise((result, reject) => {
+      const xf = document.querySelector('iframe');
+      console.log(xf);
+      const tid = setInterval(()=>{
+        const src = xf.contentWindow.document.location.href;
+        if (src) {
+          result(src);
+          clearInterval(tid);
+        }  
+      }, 2000);
+      console.log(tid);
+    });
+    console.log(p)
+    return await p;
+  }""")
+
   await page._client.send('Page.setDownloadBehavior', {'behavior': 'allow', 'downloadPath': ctx.collecting_directory})
-  await page.click(pdf_a)
-  resp = await page.waitForResponse(response_adjuster)
-  tx = resp.headers.get('x-filename')
-  if tx is not None:
-    await check_downloading(tmp)
-    ext = Path(tmp).suffix
-    fnm = os.path.join(ctx.collecting_directory, meta['pos'] + ext)
-    tmp = os.path.join(ctx.collecting_directory, tx)
-    try:
-      os.rename(tmp, fnm)
-    except:
-      log.info(f'renaming failure: download saved as {tx}')
+  arr = await page.evaluate("""async pdf_url => {
+    return await fetch(pdf_url, { method: 'GET' })
+      .then(r => r.blob())
+      .then(b => new Response(b).arrayBuffer())
+      .then(t => [...new Uint8Array(t)])
+  }""", [pdf_url])
+  buf = bytearray(len(arr))
+  buf[0:len(arr)] = arr
 
-def response_adjuster(res):
-  ctyp = res.headers.get('content-disposition') 
-  if ctyp is not None:
-    value, params = cgi.parse_header(ctyp)
-    res.headers['x-filename'] = params['filename']
-    return True
-  return False
-
-async def check_downloading(p):
-  p = Path(p).stem
-  down = p + '.crdownload'
-  keepon = 0
-  while True:
-    if os.path.exists(p): break
-    if keepon > 10: break
-    if os.path.exists(down): keepon = 0
-    await asyncio.sleep(1)
-    keepon += 1
+  fname = os.path.join(ctx.collecting_directory, meta['pos'])+'.pdf'
+  with open(fname, 'wb') as w:
+    w.write(buf)
+    log.info(f'downloaded {fname}')
+  #await asyncio.wait([
+   # page.click(pdf_a),
+   # page.waitForNavigation({'waitUntil': 'load'}),
+  #])
