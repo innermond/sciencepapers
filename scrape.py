@@ -58,11 +58,82 @@ def collecting_directory_create():
 async def start(logger):
   ctx.log = logger
   ctx.browser = await launch({
-    'headless': True, 
+    'headless': False, 
     'autoClose': False, 
     'handleSIGINT': False, 
+    #'args': ['--no-sandbox'],
+    'ignoreDefaultArgs': ["--enable-automation"],
     })
   ctx.page = await ctx.browser.newPage()
+  userAgent = 'Mozilla/5.0 (X11; Linux x86_64)A ppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.39 Safari/537.36'
+  await ctx.page.setUserAgent(userAgent)
+  await ctx.page.evaluateOnNewDocument("""() => {
+
+  Object.defineProperty(navigator, 'webdriver', {
+    get: () => false,
+  });};
+
+  Object.defineProperty(navigator, 'languages', {
+    get: () => ['en-US', 'en'],
+  });
+
+  Object.defineProperty(navigator, 'plugins', {
+    get: () => [1, 2, 3, 4, 5],
+  });
+
+  window.navigator.chrome = {
+    app: {
+      isInstalled: false,
+    },
+    webstore: {
+      onInstallStageChanged: {},
+      onDownloadProgress: {},
+    },
+    runtime: {
+      PlatformOs: {
+        MAC: 'mac',
+        WIN: 'win',
+        ANDROID: 'android',
+        CROS: 'cros',
+        LINUX: 'linux',
+        OPENBSD: 'openbsd',
+      },
+      PlatformArch: {
+        ARM: 'arm',
+        X86_32: 'x86-32',
+        X86_64: 'x86-64',
+      },
+      PlatformNaclArch: {
+        ARM: 'arm',
+        X86_32: 'x86-32',
+        X86_64: 'x86-64',
+      },
+      RequestUpdateCheckStatus: {
+        THROTTLED: 'throttled',
+        NO_UPDATE: 'no_update',
+        UPDATE_AVAILABLE: 'update_available',
+      },
+      OnInstalledReason: {
+        INSTALL: 'install',
+        UPDATE: 'update',
+        CHROME_UPDATE: 'chrome_update',
+        SHARED_MODULE_UPDATE: 'shared_module_update',
+      },
+      OnRestartRequiredReason: {
+        APP_UPDATE: 'app_update',
+        OS_UPDATE: 'os_update',
+        PERIODIC: 'periodic',
+      },
+    },
+  };
+
+    const originalQuery = window.navigator.permissions.query;
+  return window.navigator.permissions.query = (parameters) => (
+    parameters.name === 'notifications' ?
+      Promise.resolve({ state: Notification.permission }) :
+      originalQuery(parameters)
+  );
+  """)
   ctx.collecting_directory = collecting_directory_create()
 
 async def end():
@@ -99,7 +170,7 @@ async def download_using(urls):
     except Exception as err:
       ctx.log.error(f'scrape: {url} cannot be downloaded')
       if os.getenv('LOGGER_SHOW_ERROR', '0') == '1':
-        ctx.log.error(err)
+        ctx.log.error('scrape:', err)
 
     toplevel_prev = domain(url)
     continue

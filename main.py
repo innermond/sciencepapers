@@ -23,10 +23,11 @@ formatter = logging.Formatter(os.getenv('LOGGER_FORMAT'))
 ch.setFormatter(formatter)
 log.addHandler(ch)
 
+KEYS = os.getenv('KEYS_FILENAME')
 
-def load_keys():
-  KEYS = os.getenv('KEYS_FILENAME')
-  book = xlrd.open_workbook(KEYS)
+
+def load_keys(kk):
+  book = xlrd.open_workbook(kk)
   sh = book.sheet_by_index(0)
   
   keys = {}
@@ -106,7 +107,7 @@ def rows_from(excel, ii=None, rown=None, source=None):
 
 # keys
 try:
-  keys = load_keys()
+  keys = load_keys(KEYS)
   if arguments.source is not None:
     keys = {k:v for k, v in keys.items() if k in arguments.source}
 except Exception as err:
