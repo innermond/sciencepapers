@@ -59,6 +59,7 @@ async def start(logger):
   ctx.log = logger
   ctx.browser = await launch({
     'headless': True, 
+    #'devtools': True,
     'autoClose': False, 
     'handleSIGINT': False, 
     'args': ['--no-sandbox'],
@@ -71,7 +72,7 @@ async def start(logger):
 
   Object.defineProperty(navigator, 'webdriver', {
     get: () => false,
-  });};
+  });
 
   Object.defineProperty(navigator, 'languages', {
     get: () => ['en-US', 'en'],
@@ -127,19 +128,19 @@ async def start(logger):
     },
   };
 
-    const originalQuery = window.navigator.permissions.query;
+  const originalQuery = window.navigator.permissions.query;
   return window.navigator.permissions.query = (parameters) => (
     parameters.name === 'notifications' ?
       Promise.resolve({ state: Notification.permission }) :
       originalQuery(parameters)
   );
+  }
   """)
   ctx.collecting_directory = collecting_directory_create()
 
 async def end():
-  pass
-  #if ctx.page.isClosed == False: await ctx.page.close()
-  #await ctx.browser.close()
+  if ctx.page.isClosed == False: await ctx.page.close()
+  await ctx.browser.close()
 
 async def download_using(urls):
   toplevel_prev = ''

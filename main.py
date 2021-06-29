@@ -122,7 +122,12 @@ async def main():
     if arguments.source is not None:
       arguments.source = list(set(arguments.source)) 
     await scrape.start(log)
-    await scrape.download_using(rows_from(arguments.list, arguments.only, arguments.rownumber, arguments.source))
+    rows = rows_from(arguments.list, arguments.only, arguments.rownumber, arguments.source)
+    if arguments.count is not None:
+      lrows = sum(1 for i in rows)
+      log.info(f'Counts: {lrows}')
+    else:
+      await scrape.download_using(rows)
   except FileNotFoundError as err:
     log.error('File {} not found'.format(arguments.list))
     raise err
