@@ -57,10 +57,10 @@ async def apply(ctx, url, meta):
   resp = await page.waitForResponse(response_adjuster)
   tx = resp.headers.get('x-filename')
   if tx is not None:
+    tmp = os.path.join(ctx.collecting_directory, tx)
     await check_downloading(tmp)
     ext = Path(tmp).suffix
     fnm = os.path.join(ctx.collecting_directory, meta['pos'] + ext)
-    tmp = os.path.join(ctx.collecting_directory, tx)
     try:
       os.rename(tmp, fnm)
     except:
