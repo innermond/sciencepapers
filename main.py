@@ -127,7 +127,19 @@ async def main():
       lrows = sum(1 for i in rows)
       log.info(f'Counts: {lrows}')
     else:
-      await scrape.download_using(rows)
+      i=0
+      peak_retries = 3
+      while i < peak_retries:
+        retries = await scrape.download_using(rows)
+        if len(retries) == 0: break
+        rows = retries
+        await asyncio.sleep(1)
+        i += 1
+      else:
+        log.error(f'retried {peak_retries} times to download')
+        for url in [u for u,_ in retries]:
+          log.error(f'{url} NOT downloaded')
+
   except FileNotFoundError as err:
     log.error('File {} not found'.format(arguments.list))
     raise err

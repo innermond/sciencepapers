@@ -9,6 +9,9 @@ ctx_authenticated = contextvars.ContextVar('authenticated')
 ctx_authenticated.set(False)
 
 async def apply(ctx, url, meta):
+  #import pyppeteer
+  #import random
+  #if random.randint(2, 5)%2==1: raise pyppeteer.errors.TimeoutError('artificial error')
   # shorts
   log = ctx.log
   page = ctx.page
@@ -30,7 +33,6 @@ async def apply(ctx, url, meta):
     await page.waitForSelector(univ_selector)
     await page.type(univ_selector, 'University of Melbourne')
     await page.waitForSelector(inst_selector)
-    #await page.waitFor(1000)
     await page.click(inst_selector)
     await page.waitForNavigation()
     btn_selector = '#okta-signin-submit'
@@ -45,26 +47,31 @@ async def apply(ctx, url, meta):
     ctx_authenticated.set(True)
 
   # to the target
-  log.info(f'redirect to {url}')
   await asyncio.wait([
     page.goto(url),
     page.waitForNavigation({'waitUntil': 'load'}),
   ])
   pdf_a = 'xpl-view-pdf a'
-  await page.waitForSelector(pdf_a)
+  await page.waitForSelector(pdf_a, {'visible': True})
   await page._client.send('Page.setDownloadBehavior', {'behavior': 'allow', 'downloadPath': ctx.collecting_directory})
   await page.click(pdf_a)
   resp = await page.waitForResponse(response_adjuster)
   tx = resp.headers.get('x-filename')
   if tx is not None:
     tmp = os.path.join(ctx.collecting_directory, tx)
-    await check_downloading(tmp)
     ext = Path(tmp).suffix
-    fnm = os.path.join(ctx.collecting_directory, meta['pos'] + ext)
-    try:
-      os.rename(tmp, fnm)
-    except:
-      log.info(f'renaming failure: download saved as {tx}')
+    ext_mime = os.getenv('DOWNLOAD_TYPE')
+    ext_mime = ext_mime.split('/')[-1]
+    if ext == '.'+ext_mime:
+      timeout = int(os.getenv('CHECK_DOWNLOAD_SECONDS', 30))
+      await asyncio.wait_for(check_downloading(tmp), timeout)
+      fnm = os.path.join(ctx.collecting_directory, meta['pos'] + ext)
+      try:
+        os.rename(tmp, fnm)
+        log.info(f'downloaded as {fnm}')
+      except Exception as ex:
+        log.error(ex)
+        log.info(f'renaming failure: download saved as {tx}')
 
 def response_adjuster(res):
   ctyp = res.headers.get('content-disposition') 
@@ -75,12 +82,4 @@ def response_adjuster(res):
   return False
 
 async def check_downloading(p):
-  p = Path(p).stem
-  down = p + '.crdownload'
-  keepon = 0
-  while True:
-    if os.path.exists(p): break
-    if keepon > 10: break
-    if os.path.exists(down): keepon = 0
-    await asyncio.sleep(1)
-    keepon += 1
+  while not os.path.exists(p): pass

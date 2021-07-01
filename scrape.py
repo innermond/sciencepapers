@@ -1,7 +1,7 @@
 import sys
 from urllib.parse import urlparse
 import asyncio
-from pyppeteer import launch
+import pyppeteer
 from importlib import import_module
 import time
 import os
@@ -57,9 +57,10 @@ def collecting_directory_create():
 
 async def start(logger):
   ctx.log = logger
-  ctx.browser = await launch({
-    'headless': True, 
-    #'devtools': True,
+  headless = bool(os.getenv('HEADLESS', True))
+  ctx.log.info(f'starting browser: headless mode {headless}')
+  ctx.browser = await pyppeteer.launch({
+    'headless': headless, 
     'autoClose': False, 
     'handleSIGINT': False, 
     'args': ['--no-sandbox'],
@@ -144,12 +145,12 @@ async def end():
 
 async def download_using(urls):
   toplevel_prev = ''
+  download_retry = []
   for url, meta in urls:
     toplevel = domain(url)
     try:
       if toplevel == toplevel_prev:
         slowdown = int(os.getenv('SLOWDOWN', '2'))
-        ctx.log.info(f'applied rate limit {slowdown} seconds')
         time.sleep(slowdown)
 
       strategy_namespace = import_strategy(meta['strategy'])
@@ -167,6 +168,9 @@ async def download_using(urls):
 
       strategy = sys.modules[strategy_namespace]
       await strategy.apply(ctx, url, meta)
+    except pyppeteer.errors.TimeoutError:
+      ctx.log.info(f'retriable {url}')
+      download_retry.append((url, meta))
     except KeyboardInterrupt as ke:
       raise ke
     except Exception as err:
@@ -176,3 +180,4 @@ async def download_using(urls):
 
     toplevel_prev = domain(url)
     continue
+  return download_retry
