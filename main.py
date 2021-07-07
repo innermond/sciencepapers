@@ -123,7 +123,8 @@ async def main():
     if arguments.source is not None:
       arguments.source = list(set(arguments.source)) 
     rows = rows_from(arguments.list, arguments.only, arguments.rownumber, arguments.source)
-    lrows = sum(1 for i in itertools.tee(rows, 1)[0])
+    rows, rows1 = itertools.tee(rows, 2)
+    lrows = sum(1 for i in rows1)
     log.info(f'Counts: {lrows}')
     if arguments.count is True: return
     await scrape.start(log)
