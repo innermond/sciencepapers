@@ -67,12 +67,11 @@ def rows_from(excel, ii=None, rown=None, source=None):
           break
         row_range = [rown]
 
-      log.info('Begin sheet name: {}'.format(sh.name))
+      if arguments.count is False:
+        log.info('Begin sheet name: {}'.format(sh.name))
       for rowx in row_range:
         url = sh.row(rowx)[1] #assumed 1 exists
-        if  not url.value:
-          log.info('Empty row skyped')
-          continue
+        if  not url.value: continue
 
         pos = '{}__{}__{}__'.format(filenamefy(excel), i, rowx)
         k = scrape.domain(url.value)
@@ -153,6 +152,9 @@ async def main():
     await scrape.end()
 
 if __name__ == '__main__':
+  if arguments.count == True:
+    asyncio.run(main())
+    sys.exit(0)
 
   try:
     def signal_handler(sig, frame):

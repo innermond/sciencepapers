@@ -4,6 +4,7 @@ import contextvars
 import os
 import cgi
 from pathlib import Path
+import pyppeteer
 
 ctx_authenticated = contextvars.ContextVar('authenticated')
 ctx_authenticated.set(False)
@@ -57,6 +58,7 @@ async def apply(ctx, url, meta):
   await page.click(pdf_a)
   resp = await page.waitForResponse(response_adjuster)
   tx = resp.headers.get('x-filename')
+  log.info(f'original filename to download: {tx}')
   if tx is not None:
     tmp = os.path.join(ctx.collecting_directory, tx)
     ext = Path(tmp).suffix
@@ -72,6 +74,8 @@ async def apply(ctx, url, meta):
       except Exception as ex:
         log.error(ex)
         log.info(f'renaming failure: download saved as {tx}')
+    else:
+      raise pyppeteer.errors.TimeoutError
 
 def response_adjuster(res):
   ctyp = res.headers.get('content-disposition') 

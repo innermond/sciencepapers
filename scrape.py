@@ -140,6 +140,8 @@ async def start(logger):
   ctx.collecting_directory = collecting_directory_create()
 
 async def end():
+  # let the machinery some time
+  await asyncio.sleep(2)
   if ctx.page is not None and ctx.page.isClosed == False: await ctx.page.close()
   if ctx.browser is not None: await ctx.browser.close()
 
