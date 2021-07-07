@@ -140,8 +140,8 @@ async def start(logger):
   ctx.collecting_directory = collecting_directory_create()
 
 async def end():
-  if ctx.page.isClosed == False: await ctx.page.close()
-  await ctx.browser.close()
+  if ctx.page is not None and ctx.page.isClosed == False: await ctx.page.close()
+  if ctx.browser is not None: await ctx.browser.close()
 
 async def download_using(urls):
   toplevel_prev = ''

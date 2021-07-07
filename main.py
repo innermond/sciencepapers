@@ -121,24 +121,25 @@ async def main():
       arguments.only = list(set(arguments.only)) 
     if arguments.source is not None:
       arguments.source = list(set(arguments.source)) 
-    await scrape.start(log)
     rows = rows_from(arguments.list, arguments.only, arguments.rownumber, arguments.source)
-    if arguments.count is not None:
-      lrows = sum(1 for i in rows)
-      log.info(f'Counts: {lrows}')
+    lrows = sum(1 for i in rows)
+    log.info(f'Counts: {lrows}')
+    if arguments.count is False or arguments.count is None: return
+    print(arguments)
+    sys.exit(1)
+    await scrape.start(log)
+    i=0
+    peak_retries = 3
+    while i < peak_retries:
+      retries = await scrape.download_using(rows)
+      if len(retries) == 0: break
+      rows = retries
+      await asyncio.sleep(1)
+      i += 1
     else:
-      i=0
-      peak_retries = 3
-      while i < peak_retries:
-        retries = await scrape.download_using(rows)
-        if len(retries) == 0: break
-        rows = retries
-        await asyncio.sleep(1)
-        i += 1
-      else:
-        log.error(f'retried {peak_retries} times to download')
-        for url in [u for u,_ in retries]:
-          log.error(f'{url} NOT downloaded')
+      log.error(f'retried {peak_retries} times to download')
+      for url in [u for u,_ in retries]:
+        log.error(f'{url} NOT downloaded')
 
   except FileNotFoundError as err:
     log.error('File {} not found'.format(arguments.list))

@@ -8,9 +8,6 @@ input.add_argument('-s', '--source', type=str, nargs='+', default=None, help='us
 input.add_argument('-r', '--rownumber', type=int, default=None, help='row position in sheet file, work just when only a sheet is selected  - first row is at 0 position')
 input.add_argument('-c', '--count', default=False, dest='count', action='store_true', help='just count the records')
 arguments = input.parse_args()
-print(arguments)
-import sys
-sys.exit(1)
 if arguments is None:
   raise Exception('No arguments provided')
 
