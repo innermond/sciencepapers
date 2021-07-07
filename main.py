@@ -8,6 +8,7 @@ import re
 import unicodedata
 import asyncio
 import signal
+import itertools
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -122,11 +123,9 @@ async def main():
     if arguments.source is not None:
       arguments.source = list(set(arguments.source)) 
     rows = rows_from(arguments.list, arguments.only, arguments.rownumber, arguments.source)
-    lrows = sum(1 for i in rows)
+    lrows = sum(1 for i in itertools.tee(rows, 1)[0])
     log.info(f'Counts: {lrows}')
-    if arguments.count is False or arguments.count is None: return
-    print(arguments)
-    sys.exit(1)
+    if arguments.count is True: return
     await scrape.start(log)
     i=0
     peak_retries = 3
