@@ -18,19 +18,25 @@ async def apply(ctx, url, meta):
   page = ctx.page
   log.info(f'{__name__} [{url}] in progress...')
   if not ctx_authenticated.get('authenticated'):
-    home_url = 'https://ieeexplore.ieee.org/Xplore/home.jsp'
+    home_url = 'https://www.osapublishing.org'
     await page.goto(home_url)
-    # click on institutional sign
-    is_selector = 'xpl-login-modal-trigger a'
+    # click on login
+    is_selector = '#loginModal'
     await page.waitForSelector(is_selector)
+    login_a = await ctx.page.querySelector(is_selector)
+    if login_a is None:
+      log.error('Could not find "login link"')
+      return
+    await login_a.click()
+    is_selector = '#userLogin div.modal-footer:first-child a'
     institutional_a = await ctx.page.querySelector(is_selector)
     if institutional_a is None:
       log.error('Could not find "Institutional Sign"')
       return
     await institutional_a.click()
     # choose University of Melbourne
-    univ_selector = 'xpl-inst-typeahead input'
-    inst_selector = 'xpl-inst-typeahead a'
+    univ_selector = '#typeahead'
+    inst_selector = 'table tr:last-child'
     await page.waitForSelector(univ_selector)
     await page.type(univ_selector, 'University of Melbourne')
     await page.waitForSelector(inst_selector)
@@ -52,7 +58,7 @@ async def apply(ctx, url, meta):
     page.goto(url),
     page.waitForNavigation({'waitUntil': 'load'}),
   ])
-  pdf_a = 'xpl-view-pdf a'
+  pdf_a = 'a[href^=viewmedia.cfm]'
   await page.waitForSelector(pdf_a, {'visible': True})
   await page._client.send('Page.setDownloadBehavior', {'behavior': 'allow', 'downloadPath': ctx.collecting_directory})
   await page.click(pdf_a)
