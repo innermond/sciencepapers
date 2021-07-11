@@ -171,7 +171,7 @@ async def download_using(urls):
       strategy = sys.modules[strategy_namespace]
       await strategy.apply(ctx, url, meta)
     except pyppeteer.errors.TimeoutError:
-      ctx.log.info(f'retriable {url}')
+      ctx.log.info(f'retry {url}')
       download_retry.append((url, meta))
     except KeyboardInterrupt as ke:
       raise ke

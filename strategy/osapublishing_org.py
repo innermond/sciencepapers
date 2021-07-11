@@ -2,7 +2,6 @@ import scrape
 import asyncio
 import contextvars
 import os
-import cgi
 from pathlib import Path
 import pyppeteer
 import re
@@ -76,15 +75,15 @@ async def apply(ctx, url, meta):
       return await fetch(pdf_url, { method: 'GET' })
       .then(r => r.text())
     }""", [url])
-    #TODO check existence
     m = re.search('src="(https://www.osapublishing.org/DirectPDFAccess/[^\"]+)"', direct_access, re.MULTILINE)
+    if m is None:
+      raise Exception('could not found direct link')
     pdf_url = m.group(1)
     await asyncio.wait([
       page.goto(url),
       page.waitForNavigation({'waitUntil': 'load'}),
     ])
 
-  print(pdf_url)
   await page._client.send('Page.setDownloadBehavior', {'behavior': 'allow', 'downloadPath': ctx.collecting_directory})
   arr = await page.evaluate("""async pdf_url => {
     return await fetch(pdf_url, { method: 'GET' })

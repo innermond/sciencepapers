@@ -5,6 +5,7 @@ import os
 import cgi
 from pathlib import Path
 import pyppeteer
+import re
 
 ctx_authenticated = contextvars.ContextVar('authenticated')
 ctx_authenticated.set(False)
@@ -54,36 +55,30 @@ async def apply(ctx, url, meta):
   ])
   pdf_a = 'xpl-view-pdf a'
   await page.waitForSelector(pdf_a, {'visible': True})
+  pdf_url = await page.evaluate("""async pdf_a => {
+    const a = document.querySelector(pdf_a);
+    return a.getAttribute('href');
+  }""", [pdf_a])
+  pdf_url = 'https://ieeexplore.ieee.org' + pdf_url
+  direct_access = await page.evaluate("""async pdf_url => {
+    return await fetch(pdf_url, { method: 'GET' })
+    .then(r => r.text())
+  }""", [pdf_url])
+  m = re.search('src="(https://ieeexplore.ieee.org/stampPDF/getPDF.jsp[^\"]+)"', direct_access, re.MULTILINE)
+  if m is None:
+    raise Exception('could not found direct link')
+  pdf_url = m.group(1)
   await page._client.send('Page.setDownloadBehavior', {'behavior': 'allow', 'downloadPath': ctx.collecting_directory})
-  await page.click(pdf_a)
-  resp = await page.waitForResponse(response_adjuster)
-  tx = resp.headers.get('x-filename')
-  log.info(f'original filename to download: {tx}')
-  if tx is not None:
-    tmp = os.path.join(ctx.collecting_directory, tx)
-    ext = Path(tmp).suffix
-    ext_mime = os.getenv('DOWNLOAD_TYPE')
-    ext_mime = ext_mime.split('/')[-1]
-    if ext == '.'+ext_mime:
-      timeout = int(os.getenv('CHECK_DOWNLOAD_SECONDS', 30))
-      await asyncio.wait_for(check_downloading(tmp), timeout)
-      fnm = os.path.join(ctx.collecting_directory, meta['pos'] + ext)
-      try:
-        os.rename(tmp, fnm)
-        log.info(f'downloaded as {fnm}')
-      except Exception as ex:
-        log.error(ex)
-        log.info(f'renaming failure: download saved as {tx}')
-    else:
-      raise pyppeteer.errors.TimeoutError
+  arr = await page.evaluate("""async pdf_url => {
+    return await fetch(pdf_url, { method: 'GET' })
+      .then(r => r.blob())
+      .then(b => new Response(b).arrayBuffer())
+      .then(t => [...new Uint8Array(t)])
+  }""", [pdf_url])
+  buf = bytearray(len(arr))
+  buf[0:len(arr)] = arr
 
-def response_adjuster(res):
-  ctyp = res.headers.get('content-disposition') 
-  if ctyp is not None:
-    value, params = cgi.parse_header(ctyp)
-    res.headers['x-filename'] = params['filename']
-    return True
-  return False
-
-async def check_downloading(p):
-  while not os.path.exists(p): pass
+  fname = os.path.join(ctx.collecting_directory, meta['pos'])+'.pdf'
+  with open(fname, 'wb') as w:
+    w.write(buf)
+    log.info(f'downloaded {fname}')
