@@ -57,7 +57,7 @@ def collecting_directory_create():
 
 async def start(logger):
   ctx.log = logger
-  headless = bool(os.getenv('HEADLESS', True))
+  headless = True if os.getenv('HEADLESS', '1') == '1' else False
   ctx.log.info(f'starting browser: headless mode {headless}')
   ctx.browser = await pyppeteer.launch({
     'headless': headless, 

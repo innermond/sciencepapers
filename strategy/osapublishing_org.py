@@ -5,35 +5,39 @@ import os
 import cgi
 from pathlib import Path
 import pyppeteer
+import re
 
 ctx_authenticated = contextvars.ContextVar('authenticated')
 ctx_authenticated.set(False)
 
 async def apply(ctx, url, meta):
-  #import pyppeteer
-  #import random
-  #if random.randint(2, 5)%2==1: raise pyppeteer.errors.TimeoutError('artificial error')
   # shorts
   log = ctx.log
   page = ctx.page
   log.info(f'{__name__} [{url}] in progress...')
   if not ctx_authenticated.get('authenticated'):
     home_url = 'https://www.osapublishing.org'
-    await page.goto(home_url)
+    await page.goto(home_url,  {"waitUntil" : "networkidle0"})
+    # accept cookies - has effect?
+    is_selector = '#cookiePopup a.btn-primary'
+    cookie_a = await page.waitForSelector(is_selector, {'visible': True})
+    await cookie_a.click()
+    # wait for cookie panel to dissapeat and UNCOVER our link. Remember, we are a human user, we cannot click on covered elements
+    await page.waitForSelector(is_selector, {'hidden': True})
     # click on login
     is_selector = '#loginModal'
-    await page.waitForSelector(is_selector)
-    login_a = await ctx.page.querySelector(is_selector)
+    login_a = await page.waitForSelector(is_selector, {'visible': True})
     if login_a is None:
       log.error('Could not find "login link"')
       return
     await login_a.click()
-    is_selector = '#userLogin div.modal-footer:first-child a'
-    institutional_a = await ctx.page.querySelector(is_selector)
+    is_selector = '#userLogin div.modal-footer div:first-child a'
+    institutional_a = await page.waitForSelector(is_selector, {'visible': True})
     if institutional_a is None:
       log.error('Could not find "Institutional Sign"')
       return
-    await institutional_a.click()
+    href = await page.evaluate('e=>e.href', institutional_a)
+    await page.goto(href,  {"waitUntil" : "networkidle0"})
     # choose University of Melbourne
     univ_selector = '#typeahead'
     inst_selector = 'table tr:last-child'
@@ -54,42 +58,44 @@ async def apply(ctx, url, meta):
     ctx_authenticated.set(True)
 
   # to the target
-  await asyncio.wait([
-    page.goto(url),
-    page.waitForNavigation({'waitUntil': 'load'}),
-  ])
-  pdf_a = 'a[href^=viewmedia.cfm]'
-  await page.waitForSelector(pdf_a, {'visible': True})
+  if 'viewmedia.cfm' not in url:
+    await asyncio.wait([
+      page.goto(url),
+      page.waitForNavigation({'waitUntil': 'load'}),
+    ])
+    pdf_sel = 'a[href*="viewmedia.cfm"]'
+    pdf_a = await page.waitForSelector(pdf_sel, {'visible': True})
+    pdf_url = await page.evaluate("""async pdf_a => {
+      const a = document.querySelector(pdf_a);
+      return a.getAttribute('href');
+    }""", [pdf_sel])
+    pdf_url = 'https://www.osapublishing.org/' + pdf_url
+  else:
+    # when accesing by viewmedia.cfm
+    direct_access = await page.evaluate("""async pdf_url => {
+      return await fetch(pdf_url, { method: 'GET' })
+      .then(r => r.text())
+    }""", [url])
+    #TODO check existence
+    m = re.search('src="(https://www.osapublishing.org/DirectPDFAccess/[^\"]+)"', direct_access, re.MULTILINE)
+    pdf_url = m.group(1)
+    await asyncio.wait([
+      page.goto(url),
+      page.waitForNavigation({'waitUntil': 'load'}),
+    ])
+
+  print(pdf_url)
   await page._client.send('Page.setDownloadBehavior', {'behavior': 'allow', 'downloadPath': ctx.collecting_directory})
-  await page.click(pdf_a)
-  resp = await page.waitForResponse(response_adjuster)
-  tx = resp.headers.get('x-filename')
-  log.info(f'original filename to download: {tx}')
-  if tx is not None:
-    tmp = os.path.join(ctx.collecting_directory, tx)
-    ext = Path(tmp).suffix
-    ext_mime = os.getenv('DOWNLOAD_TYPE')
-    ext_mime = ext_mime.split('/')[-1]
-    if ext == '.'+ext_mime:
-      timeout = int(os.getenv('CHECK_DOWNLOAD_SECONDS', 30))
-      await asyncio.wait_for(check_downloading(tmp), timeout)
-      fnm = os.path.join(ctx.collecting_directory, meta['pos'] + ext)
-      try:
-        os.rename(tmp, fnm)
-        log.info(f'downloaded as {fnm}')
-      except Exception as ex:
-        log.error(ex)
-        log.info(f'renaming failure: download saved as {tx}')
-    else:
-      raise pyppeteer.errors.TimeoutError
+  arr = await page.evaluate("""async pdf_url => {
+    return await fetch(pdf_url, { method: 'GET' })
+      .then(r => r.blob())
+      .then(b => new Response(b).arrayBuffer())
+      .then(t => [...new Uint8Array(t)])
+  }""", [pdf_url])
+  buf = bytearray(len(arr))
+  buf[0:len(arr)] = arr
 
-def response_adjuster(res):
-  ctyp = res.headers.get('content-disposition') 
-  if ctyp is not None:
-    value, params = cgi.parse_header(ctyp)
-    res.headers['x-filename'] = params['filename']
-    return True
-  return False
-
-async def check_downloading(p):
-  while not os.path.exists(p): pass
+  fname = os.path.join(ctx.collecting_directory, meta['pos'])+'.pdf'
+  with open(fname, 'wb') as w:
+    w.write(buf)
+    log.info(f'downloaded {fname}')

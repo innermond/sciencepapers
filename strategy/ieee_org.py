@@ -23,7 +23,7 @@ async def apply(ctx, url, meta):
     # click on institutional sign
     is_selector = 'xpl-login-modal-trigger a'
     await page.waitForSelector(is_selector)
-    institutional_a = await ctx.page.querySelector(is_selector)
+    institutional_a = await page.querySelector(is_selector)
     if institutional_a is None:
       log.error('Could not find "Institutional Sign"')
       return
