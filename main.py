@@ -152,6 +152,7 @@ async def main():
     await scrape.end()
 
 if __name__ == '__main__':
+  # only counts sync
   if arguments.count == True:
     asyncio.run(main())
     sys.exit(0)
@@ -161,6 +162,7 @@ if __name__ == '__main__':
       raise KeyboardInterrupt('kill them all')
     signal.signal(signal.SIGINT, signal_handler)
     loop = asyncio.get_event_loop()
+    # run async here
     loop.run_until_complete(main())
   except KeyboardInterrupt as e:
     log.error('canceling request from user - finishing pending operations...')

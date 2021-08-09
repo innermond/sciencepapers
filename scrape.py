@@ -143,7 +143,10 @@ async def end():
   # let the machinery some time
   await asyncio.sleep(2)
   if ctx.page is not None and ctx.page.isClosed == False: await ctx.page.close()
-  if ctx.browser is not None: await ctx.browser.close()
+  if ctx.browser is not None: 
+    await ctx.browser.close()
+    ctx.log.info('headless browser was closed')
+  ctx.log.info('bye!')
 
 async def download_using(urls):
   toplevel_prev = ''
