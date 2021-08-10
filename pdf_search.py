@@ -5,21 +5,32 @@ from pdfminer.layout import LAParams
 from pdfminer.pdfdocument import PDFDocument
 from pdfminer.pdfparser import PDFParser
 import io
+import re
 import os
+import sys
+import shutil
 import logging
 
 from input_pdf_search import arguments
 
-# logging
-log = logging.getLogger('app')
-log.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter(os.getenv('LOGGER_FORMAT'))
-ch.setFormatter(formatter)
-log.addHandler(ch)
-
 if __name__ == '__main__':
+  # logging
+  log = logging.getLogger('app')
+  log.setLevel(logging.DEBUG)
+  ch = logging.StreamHandler()
+  ch.setLevel(logging.DEBUG)
+  formatter = logging.Formatter(os.getenv('LOGGER_FORMAT'))
+  ch.setFormatter(formatter)
+  log.addHandler(ch)
+
+  # validate
+  if os.path.isfile(arguments.pdf) == False:
+    log.error('%s is not a file', arguments.pdf)
+    sys.exit(1)
+  if os.path.isdir(arguments.directory) == False:
+    log.error('%s is not a directory', arguments.directory)
+    sys.exit(1)
+
   fp = open(arguments.pdf, 'rb')
   rsrcmgr = PDFResourceManager()
   retstr = io.StringIO()
@@ -29,15 +40,28 @@ if __name__ == '__main__':
   interpreter = PDFPageInterpreter(rsrcmgr, device)
 
   page_no = 0
+  pattern = '\s+'.join(map(lambda n: re.escape(n), arguments.keywords))
+  copied = os.path.join(arguments.directory, os.path.basename(arguments.pdf))
+  if arguments.overwrite and os.path.isfile(copied):
+    log.error('there is already a file "%s"', copied)
+    sys.exit(1)
+
   for pageNumber, page in enumerate(PDFPage.get_pages(fp)):
     interpreter.process_page(page)
+    page_no += 1
     data = retstr.getvalue()
-    data = data.encode('utf-8')
-    print(data, page_no)
-    #with open(os.path.join('Files/Company_list/0010/text_parsed/2017AR', f'pdf page {page_no}.txt'), 'wb') as file:
-     # file.write(data.encode('utf-8'))
+    log.info('page %s', page_no)
+    found = re.search(pattern, data, re.IGNORECASE)
+    if found:
+      log.info('found "%s", now copying to directory "%s"', pattern, arguments.directory)
+      # check file is there
+      try:
+        shutil.copy(arguments.pdf, arguments.directory)
+        log.info('successfully copied')
+        sys.exit(0)
+      except Exception as ex:
+        log.error('error %s', ex)
+        sys.exit(1)
     data = ''
     retstr.truncate(0)
     retstr.seek(0)
-
-    page_no += 1
