@@ -41,7 +41,8 @@ if __name__ == '__main__':
 
   page_no = 0
   pattern = '\s+'.join(map(lambda n: re.escape(n), arguments.keywords))
-  copied = os.path.join(arguments.directory, os.path.basename(arguments.pdf))
+  directory = os.path.abspath(arguments.directory)
+  copied = os.path.join(directory, os.path.basename(arguments.pdf))
   if arguments.overwrite and os.path.isfile(copied):
     log.error('there is already a file "%s"', copied)
     sys.exit(1)
@@ -53,11 +54,11 @@ if __name__ == '__main__':
     log.info('page %s', page_no)
     found = re.search(pattern, data, re.IGNORECASE)
     if found:
-      log.info('found "%s", now copying to directory "%s"', pattern, arguments.directory)
+      log.info('found "%s", now copying to directory "%s"', pattern, directory)
       # check file is there
       try:
-        shutil.copy(arguments.pdf, arguments.directory)
-        log.info('successfully copied')
+        shutil.copy(os.path.abspath(arguments.pdf), directory)
+        log.info('successfully copied "%s"', copied)
         sys.exit(0)
       except Exception as ex:
         log.error('error %s', ex)
