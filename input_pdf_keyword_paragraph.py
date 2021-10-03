@@ -3,7 +3,7 @@ import argparse
 input = argparse.ArgumentParser(description='Given a keyword, search pdfs and copy the paragraph surrounding the keyword into a document, with the title of the source')
 input.add_argument('-f', '--pdf', type=str, required=True, help='target PDF file')
 input.add_argument('-w', '--keywords', type=str, nargs='+', required=True, help='keywords to be searched for')
-input.add_argument('-d', '--document', type=str, required=True, help='document name, to collect all paragraphs of interest')
+input.add_argument('-d', '--directory', type=str, required=True, help='directory, to collect all text files containing the found paragraphs')
 
 input.add_argument('-i', '--ignorecase', default=False, dest='ignorecase', action='store_true', help='searching case insensitive')
 

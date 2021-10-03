@@ -4,6 +4,7 @@ from pdfminer.converter import XMLConverter, HTMLConverter, TextConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfdocument import PDFDocument
 from pdfminer.pdfparser import PDFParser
+from pathlib import Path
 import io
 import re
 import os
@@ -29,8 +30,7 @@ def get_files(ext):
   files = []
   currentfile = arguments.pdf
   if os.path.isdir(currentfile):
-    os.chdir(currentfile)
-    for root, _, founds in os.walk('.'):
+    for root, _, founds in os.walk(currentfile):
       if len(founds) == 0: continue
       founds = filter(lambda f: f.endswith(ext), founds)
       founds = map(lambda f: os.path.join(root, f), founds)
@@ -40,7 +40,15 @@ def get_files(ext):
   else:
     log.error('%s is not a file, nor a directory', currentfile)
     sys.exit(1)
-  return files
+  # carefull with many files
+  peak = 10
+  if len(files) >= peak:
+    return chunks(files, peak)
+  return [files]
+
+def chunks(lst, n):
+  for i in range(0, len(lst), n):
+    yield lst[i:i + n]
 
 def process_page(currentfile, pageNumber, page, dp):
   peek_lines = arguments.peek
@@ -125,11 +133,8 @@ def find_into(currentfile):
   raw_keywords = ' '.join(arguments.keywords)
   postfix = '-'.join(arguments.keywords)+'.txt'
   noext = os.path.splitext(currentfile)[0]
-  doc = os.path.abspath(noext+'_'+arguments.document+'_'+postfix)
-  if arguments.overwrite and os.path.isfile(doc):
-    log.error('there is already a file "%s"', doc)
-    return
-
+  noext = noext.strip(".").strip(os.sep).replace(os.sep, '--')
+  doc = os.path.abspath(os.path.join(arguments.directory, noext+'_'+'_'+postfix))
   with open(doc, 'w') as dp:
     dp.write('File: {}\n\n'.format(currentfile))
     for pageNumber, page in enumerate(PDFPage.get_pages(fp)):
@@ -137,11 +142,20 @@ def find_into(currentfile):
 
 loop = asyncio.get_event_loop()
 
-async def main():
-  files = get_files('.pdf')
+async def main(files):
   with ProcessPoolExecutor() as executor:
     for currentfile in files:
       loop.run_in_executor(executor, find_into, currentfile)
 
 if __name__ == '__main__':
-  loop.run_until_complete(main())
+  # create collector directory
+  try:
+    Path(arguments.directory).mkdir(parents=True, exist_ok=arguments.overwrite)
+  except FileExistsError:
+    log.error('there is already a directory "%s"', arguments.directory)
+    os.exit(1)
+
+  chunks = get_files('.pdf')
+  # feed up executor in chunks
+  for files in chunks:
+    loop.run_until_complete(main(files))
