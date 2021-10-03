@@ -114,10 +114,12 @@ def process_page(currentfile, pageNumber, page, dp):
   if len(par) > 0: 
     times = len(par)
     log.info('File %s - found %s times in page %s', currentfile, times, pageNumber+1)
+    title = ""
     if arguments.title:
+      raw_keywords = ' '.join(arguments.keywords)
       title = 'Page {} keyword "{}" found {} times'.format(pageNumber+1, raw_keywords, times)
-      dp.write('{}\n{}\n'.format(title, len(title)*'-'))
-    dp.write('\n\n'.join(par) + '\n\n')
+      title = '{}\n{}\n'.format(title, len(title)*'-')
+    dp.write(title+'\n\n'.join(par) + '\n\n')
   else: 
     log.info('File %s - not found in page %s',currentfile, pageNumber+1)
   data = ''
@@ -130,7 +132,6 @@ def find_into(currentfile):
   log.info('opening file {}'.format(currentfile))
   fp = open(currentfile, 'rb')
 
-  raw_keywords = ' '.join(arguments.keywords)
   postfix = '-'.join(arguments.keywords)+'.txt'
   noext = os.path.splitext(currentfile)[0]
   noext = noext.strip(".").strip(os.sep).replace(os.sep, '--')
