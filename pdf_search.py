@@ -63,6 +63,8 @@ if __name__ == '__main__':
       except Exception as ex:
         log.error('error %s', ex)
         sys.exit(1)
+    else:
+      log.info('did not found "%s"', pattern)
     data = ''
     retstr.truncate(0)
     retstr.seek(0)

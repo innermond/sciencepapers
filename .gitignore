@@ -190,5 +190,7 @@ Backup of *.doc*
 *.~vsd*
 
 downloading_session/
+found/
+*.txt
 *.zip
 *.pdf
