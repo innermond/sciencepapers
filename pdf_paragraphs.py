@@ -50,9 +50,9 @@ def chunks(lst, n):
   for i in range(0, len(lst), n):
     yield lst[i:i + n]
 
-def process_page(currentfile, pageNumber, page, dp):
+def process_page(currentfile, keyword, pageNumber, page, dp):
   peek_lines = arguments.peek
-  pattern = '\s+'.join(map(lambda n: re.escape(n), arguments.keywords))
+  pattern = re.escape(keyword)
   pattern = r'{}'.format(pattern)
   codec = 'utf-8'
   laparams = LAParams()
@@ -116,8 +116,7 @@ def process_page(currentfile, pageNumber, page, dp):
     log.info('File %s - found %s times in page %s', currentfile, times, pageNumber+1)
     title = ""
     if arguments.title:
-      raw_keywords = ' '.join(arguments.keywords)
-      title = 'Page {} keyword "{}" found {} times'.format(pageNumber+1, raw_keywords, times)
+      title = 'Page {} keyword "{}" found {} times'.format(pageNumber+1, keyword, times)
       title = '{}\n{}\n'.format(title, len(title)*'-')
     dp.write(title+'\n\n'.join(par) + '\n\n')
   else: 
@@ -128,25 +127,24 @@ def process_page(currentfile, pageNumber, page, dp):
 
 
 # workhorse here!!
-def find_into(currentfile):
+def find_into(currentfile, keywords):
   log.info('opening file {}'.format(currentfile))
   fp = open(currentfile, 'rb')
+  for keyword in keywords:
+    postfix = keyword.replace(' ', '-')+'.txt'
+    noext = os.path.splitext(currentfile)[0]
+    noext = noext.strip(".").strip(os.sep).replace(os.sep, '--')
+    doc = os.path.abspath(os.path.join(arguments.directory, noext+'_'+'_'+postfix))
+    with open(doc, 'w') as dp:
+      dp.write('File: {}\n\n'.format(currentfile))
+      for pageNumber, page in enumerate(PDFPage.get_pages(fp)):
+        process_page(currentfile, keyword, pageNumber, page, dp)
+  fp.close()
 
-  postfix = '-'.join(arguments.keywords)+'.txt'
-  noext = os.path.splitext(currentfile)[0]
-  noext = noext.strip(".").strip(os.sep).replace(os.sep, '--')
-  doc = os.path.abspath(os.path.join(arguments.directory, noext+'_'+'_'+postfix))
-  with open(doc, 'w') as dp:
-    dp.write('File: {}\n\n'.format(currentfile))
-    for pageNumber, page in enumerate(PDFPage.get_pages(fp)):
-      process_page(currentfile, pageNumber, page, dp)
-
-loop = asyncio.get_event_loop()
-
-async def main(files):
+async def main(files, keywords):
   with ProcessPoolExecutor() as executor:
     for currentfile in files:
-      loop.run_in_executor(executor, find_into, currentfile)
+      loop.run_in_executor(executor, find_into, currentfile, keywords)
 
 if __name__ == '__main__':
   # create collector directory
@@ -154,9 +152,20 @@ if __name__ == '__main__':
     Path(arguments.directory).mkdir(parents=True, exist_ok=arguments.overwrite)
   except FileExistsError:
     log.error('there is already a directory "%s"', arguments.directory)
-    os.exit(1)
+    sys.exit(1)
 
   chunks = get_files('.pdf')
+  keywords = ' '.join(arguments.keywords)
+  
+  if os.path.isfile(keywords):
+    # assume small number of lines - read into memory
+    with open(keywords) as fk:
+      keywords = fk.readlines()
+      keywords = [line.strip() for line in keywords]
+  else:
+    keywords = [keywords]
   # feed up executor in chunks
+
+  loop = asyncio.get_event_loop()
   for files in chunks:
-    loop.run_until_complete(main(files))
+      loop.run_until_complete(main(files, keywords))
