@@ -41,7 +41,7 @@ def get_files(ext):
     log.error('%s is not a file, nor a directory', currentfile)
     sys.exit(1)
   # carefull with many files
-  peak = 10
+  peak = 20
   if len(files) >= peak:
     return chunks(files, peak)
   return [files]
@@ -111,6 +111,7 @@ def process_page(currentfile, keyword, pageNumber, page, dp):
       continue
     hashes.add(hx)
     par.append(txt)
+
   if len(par) > 0: 
     times = len(par)
     log.info('File %s - found %s times in page %s', currentfile, times, pageNumber+1)
@@ -124,6 +125,7 @@ def process_page(currentfile, keyword, pageNumber, page, dp):
   data = ''
   retstr.truncate(0)
   retstr.seek(0)
+  return len(par) > 0
 
 
 # workhorse here!!
@@ -135,10 +137,15 @@ def find_into(currentfile, keywords):
     noext = os.path.splitext(currentfile)[0]
     noext = noext.strip(".").strip(os.sep).replace(os.sep, '--')
     doc = os.path.abspath(os.path.join(arguments.directory, noext+'_'+'_'+postfix))
+    has_content = False
+    is_empty = []
     with open(doc, 'w') as dp:
       dp.write('File: {}\n\n'.format(currentfile))
       for pageNumber, page in enumerate(PDFPage.get_pages(fp)):
-        process_page(currentfile, keyword, pageNumber, page, dp)
+        has_content = process_page(currentfile, keyword, pageNumber, page, dp)
+        is_empty.append(has_content)
+    if any(is_empty) is not True:
+      os.remove(doc)
   fp.close()
 
 async def main(files, keywords):
